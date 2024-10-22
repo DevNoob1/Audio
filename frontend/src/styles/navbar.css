@@ -1,0 +1,93 @@
+/* Main Navbar Container */
+.navbar-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: 20px;
+    z-index: 99;
+    /* margin-left: -100px; */
+}
+
+/* Nav Item Styles */
+.nav-item {
+    color: #00bcd4;
+    font-size: 1.2rem;
+    /* Use rem to make font size relative to the root font size */
+    font-weight: bold;
+    text-decoration: none;
+    margin-right: 1rem;
+    /* Adjust margins in rem or % */
+    padding: 0.5rem 1rem;
+    /* Adjust padding for responsiveness */
+    z-index: 99;
+    border-radius: 8px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Nav Item Hover */
+.nav-item:hover {
+    z-index: 99;
+    background: rgba(0, 188, 212, 0.3);
+    color: #ffffff;
+}
+
+/* Navbar Inner Container (with flexbox adjustments for center alignment) */
+.navitems {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 150%;
+    /* Make width percentage-based for responsiveness */
+    overflow: hidden;
+    height: 6rem;
+    /* Use rem for height, adjusting for different screen sizes */
+    background-size: 300% 300%;
+    backdrop-filter: blur(1rem);
+    border-radius: 5rem;
+    transition: 0.5s;
+    animation: gradient_301 5s ease infinite;
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+    box-shadow: 0px 4px 10px white;
+    z-index: 99;
+}
+
+/* Responsive Adjustments Using Media Queries */
+@media (max-width: 768px) {
+    .navitems {
+        width: 100%;
+        /* Adjust width for smaller screens */
+        height: 5rem;
+        padding-left: 5px;
+        /* Decrease height */
+        box-shadow: 0px 3px 8px white;
+        /* Slightly reduce box shadow */
+    }
+
+    .nav-item {
+        font-size: 1rem;
+        /* Decrease font size */
+        margin-right: 0.5rem;
+        /* Adjust margin */
+        /* padding: 0.4rem 0.8rem; */
+        /* Adjust padding */
+    }
+}
+
+@media (max-width: 480px) {
+    .navitems {
+        width: 50%;
+        /* Further reduce width for mobile screens */
+        height: 4rem;
+        /* Decrease height even more */
+    }
+
+    .nav-item {
+        font-size: 0.9rem;
+        /* Decrease font size for phones */
+        /* margin-right: 0.3rem; */
+        /* Smaller margin for tight spaces */
+        /* padding: 0.3rem 0.6rem; */
+        /* Adjust padding */
+    }
+}
