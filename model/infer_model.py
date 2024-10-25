@@ -1,16 +1,19 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
 import numpy as np
 from flask_cors import CORS
 from utils.load_wav import load_wav_16k_mono  # Your utility function
 
+UPLOAD_FOLDER = 'uploads'  # Folder to store uploaded files
+
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CORS(app)
 
 # Load the saved model
 model = tf.keras.models.load_model("saved_model/audio_noise_classification_model.h5")
 
-# Preprocess the audio segment for inference
 def preprocess_segment(wav_segment):
     spectrogram = tf.signal.stft(wav_segment, frame_length=320, frame_step=32)
     spectrogram = tf.abs(spectrogram)
@@ -28,7 +31,6 @@ def preprocess_segment(wav_segment):
     spectrogram = tf.expand_dims(spectrogram, axis=0)  
     return spectrogram
 
-# Detect noise function
 def detect_noise_in_audio(wav, segment_duration=1.0, overlap_duration=0.5):
     sample_rate = 16000
     segment_length = int(segment_duration * sample_rate)
@@ -40,26 +42,26 @@ def detect_noise_in_audio(wav, segment_duration=1.0, overlap_duration=0.5):
         segment = wav[start:start + segment_length]
         spectrogram = preprocess_segment(segment)
         
+        if spectrogram.shape[1] == 0:
+            continue
+        
         predictions = model.predict(spectrogram)
         predicted_label = np.argmax(predictions)
         
         if predicted_label != 0:  # Assuming label 0 is "no noise"
             start_time = start / sample_rate
             end_time = (start + segment_length) / sample_rate
-            
             noise_segments.append((start_time, end_time))
     
     results = []
     if noise_segments:
         current_start, current_end = noise_segments[0]
-        
         for start_time, end_time in noise_segments[1:]:
             if start_time <= current_end:  
                 current_end = max(current_end, end_time)
             else:
                 results.append((current_start, current_end, 'Noise Detected'))
                 current_start, current_end = start_time, end_time
-   
         results.append((current_start, current_end, 'Noise Detected'))
 
     return results
@@ -74,7 +76,6 @@ def results_to_json(results):
         })
     return output
 
-# Route to handle file upload and noise detection
 @app.route('/detect-noise', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -86,16 +87,29 @@ def upload_file():
         return jsonify({"error": "No selected file"}), 400
     
     if file and file.filename.endswith('.wav'):
-        wav = load_wav_16k_mono(file)  # Load the audio data from the uploaded file
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)  # Save the file
+        
+        wav = load_wav_16k_mono(file_path)  # Load the audio data from the saved file
+        
+        if wav is None or len(wav) == 0:
+            return jsonify({"error": "Failed to load audio data."}), 400
         
         results = detect_noise_in_audio(wav)  # Process the file
         json_results = results_to_json(results)
-        
-        # You can also maintain a list of recorded files in memory or a database here
-        # For now, just return the JSON results
-        return jsonify(json_results)  # Return the JSON results
+
+        return jsonify({
+            "file_url": f"http://localhost:5000/uploads/{file.filename}",
+            "noise_segments": json_results
+        })  # Return the file URL and JSON results
     
     return jsonify({"error": "Invalid file format. Only .wav files are accepted."}), 400
 
+# Serve uploaded files
+@app.route('/uploads/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 if __name__ == '__main__':
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     app.run(port=5000, debug=True)

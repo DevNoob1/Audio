@@ -13,10 +13,10 @@
     background-position-y: 500px;
     /* Light blue to white gradient */
     font-family: 'Poppins', sans-serif;
-    height: 100vh;
+    height: 80%;
     width: 100%;
-    padding-top: 0px;
-    margin-top: -90px;
+
+    /* margin-top: -90px; */
     padding-left: 100px;
 }
 

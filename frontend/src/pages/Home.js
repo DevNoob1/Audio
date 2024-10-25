@@ -1,7 +1,5 @@
 import React from 'react';
 import '../styles/Home.css';
-import image1 from '../images/image1.png'
-import image2 from '../images/image2.png'
 import { useState, useEffect } from 'react';
 const Header = () => {
     const [text, setText] = useState('');
@@ -28,10 +26,6 @@ const Header = () => {
                     {fullText}
                 </div>
 
-            </div>
-            <div className="homeright">
-                <img className='img1' src={image1} />
-                <img className='img2' src={image2} />
             </div>
         </div>
     );
