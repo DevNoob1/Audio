@@ -72,6 +72,8 @@ const SoundRecorderLayout = () => {
     const formData = new FormData();
     formData.append("file", file);
 
+    console.log("Uploading file:", file.name);
+
     try {
       const response = await fetch("http://localhost:5000/detect-noise", {
         method: "POST",
@@ -84,16 +86,28 @@ const SoundRecorderLayout = () => {
       }
 
       const result = await response.json();
+      console.log("Response from backend:", result);
       setJsonResponse(result);
 
-      const uploadedSound = {
-        name: file.name,
+      //   const uploadedSound = {
+      //     name: file.name,
+      //     date: new Date().toISOString().split("T")[0],
+      //     url: `http://localhost:5000/uploads/${file.name}`,
+      //   };
+      //   setSounds((prevSounds) => [...prevSounds, uploadedSound]);
+      // } catch (error) {
+      //   console.error("Error:", error);
+      // }
+
+      const processedSound = {
+        name: `Processed_${file.name}`,
         date: new Date().toISOString().split("T")[0],
-        url: `http://localhost:5000/uploads/${file.name}`,
+        url: result.file_url, // Modified file URL
       };
-      setSounds((prevSounds) => [...prevSounds, uploadedSound]);
+      setSounds((prevSounds) => [...prevSounds, processedSound]);
     } catch (error) {
       console.error("Error:", error);
+      alert("There was an error uploading the file. Please try again.");
     }
   };
 
@@ -132,8 +146,8 @@ const SoundRecorderLayout = () => {
                 {isRecording
                   ? "Recording..."
                   : audioBlob
-                    ? "Recorded"
-                    : "Click to Record"}
+                  ? "Recorded"
+                  : "Click to Record"}
               </div>
             </div>
           </div>
@@ -165,13 +179,22 @@ const SoundRecorderLayout = () => {
             />
             {fileName && <p>Selected File: {fileName}</p>}
 
-            <button style={{
-              width: '100%',
-              marginTop: '20px'
-            }} onClick={handleSubmit}>Submit</button>
+            <button
+              style={{
+                width: "100%",
+                marginTop: "20px",
+              }}
+              onClick={handleSubmit}
+            >
+              Submit
+            </button>
 
             {/* JSON response display */}
             {jsonResponse && (
+              // <div className="json-response" style={{ display: "none" }}>
+              //   <h3>Detected Noise Segments:</h3>
+              //   <pre>{JSON.stringify(jsonResponse, null, 2)}</pre>
+              // </div>
               <div className="json-response" style={{ display: "none" }}>
                 <h3>Detected Noise Segments:</h3>
                 <pre>{JSON.stringify(jsonResponse, null, 2)}</pre>

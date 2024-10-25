@@ -3,12 +3,16 @@ from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
 import numpy as np
 from flask_cors import CORS
+import librosa
+import soundfile as sf
 from utils.load_wav import load_wav_16k_mono  # Your utility function
 
 UPLOAD_FOLDER = 'uploads'  # Folder to store uploaded files
+PROCESSED_FOLDER = 'processed'  # Folder to store processed files
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
 CORS(app)
 
 # Load the saved model
@@ -66,6 +70,22 @@ def detect_noise_in_audio(wav, segment_duration=1.0, overlap_duration=0.5):
 
     return results
 
+def apply_sound_effects(input_file, noise_data):
+    y, sr = librosa.load(input_file, sr=None)
+    for segment in noise_data:
+        start_time = float(segment["start_time"])
+        end_time = float(segment["end_time"])
+        
+        start_sample = int(start_time * sr)
+        end_sample = int(end_time * sr)
+        
+        y[start_sample:end_sample] *= 0.5  # Reduce volume
+        y[start_sample:end_sample] = librosa.effects.pitch_shift(y[start_sample:end_sample], sr=sr, n_steps=3)  # Add pitch shift effect
+    
+    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], f"processed_{os.path.basename(input_file)}")
+    sf.write(processed_path, y, sr)
+    return processed_path
+
 def results_to_json(results):
     output = []
     for start_time, end_time, status in results:
@@ -77,7 +97,7 @@ def results_to_json(results):
     return output
 
 @app.route('/detect-noise', methods=['POST'])
-def upload_file():
+def detect_and_process_noise():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     
@@ -85,31 +105,50 @@ def upload_file():
     
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    
+
     if file and file.filename.endswith('.wav'):
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(file_path)  # Save the file
+        file.save(file_path)
         
-        wav = load_wav_16k_mono(file_path)  # Load the audio data from the saved file
+        wav = load_wav_16k_mono(file_path) 
         
         if wav is None or len(wav) == 0:
             return jsonify({"error": "Failed to load audio data."}), 400
         
-        results = detect_noise_in_audio(wav)  # Process the file
-        json_results = results_to_json(results)
+        # Detect noise segments
+        noise_segments = detect_noise_in_audio(wav)
 
+        # Print noise_segments to check its structure
+        print("Noise Segments:", noise_segments)
+
+        # Modify comprehension to handle segments with more values
+        noise_data = []
+        for segment in noise_segments:
+            if len(segment) >= 2:
+                start, end = segment[:2]  # Take only the first two elements
+                noise_data.append({"start_time": start, "end_time": end})
+        
+        # Apply sound effects to noisy segments
+        processed_file_path = apply_sound_effects(file_path, noise_data)
+        
         return jsonify({
-            "file_url": f"http://localhost:5000/uploads/{file.filename}",
-            "noise_segments": json_results
-        })  # Return the file URL and JSON results
-    
+            "file_url": f"http://localhost:5000/{processed_file_path}",
+            "noise_segments": noise_data
+        })
+
     return jsonify({"error": "Invalid file format. Only .wav files are accepted."}), 400
 
-# Serve uploaded files
+
+# Serve uploaded and processed files
 @app.route('/uploads/<filename>')
-def serve_file(filename):
+def serve_uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/processed/<filename>')
+def serve_processed_file(filename):
+    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
     app.run(port=5000, debug=True)
